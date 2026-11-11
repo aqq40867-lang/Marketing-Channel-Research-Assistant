@@ -276,11 +276,6 @@ export function DraftEditor({
                 </button>
               </div>
             </div>
-            {marks > 0 && (
-              <p className="mb-1 text-xs text-slate-500">
-                Marks like <code className="rounded bg-sky-100 px-1 text-sky-800">[E1]</code> show which verified evidence a sentence relies on (hover them in “Show flags &amp; evidence”, or see the fact-check list). Check them, then remove them before sending.
-              </p>
-            )}
             {preview ? (
               <div className="min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <Highlighted text={body} flags={flags} evidence={saved.evidence ?? []} />
