@@ -1,6 +1,6 @@
 // POST /api/draft: takes product info + the chosen channel and its verified evidence, returns a draft and check results
 import { chatJson, toAppError } from "@/lib/deepseek";
-import { checkEmail, INPUT_FIELD_LABEL, numbersSupported } from "@/lib/emailCheck";
+import { checkEmail, INPUT_FIELD_LABEL, keepValidEvidenceMarks, numbersSupported, stripEvidenceMarks } from "@/lib/emailCheck";
 import { fillRecipient } from "@/lib/profile";
 import { DRAFT_SYSTEM, draftUser } from "@/lib/prompts";
 import { draftRequestSchema, draftSchema, type DraftOut } from "@/lib/schemas";
@@ -57,6 +57,7 @@ function buildFactMap(out: DraftOut, input: ResearchInput, ev: EvidenceItem[]): 
       claim: c.claim,
       source: "evidence",
       ref: e?.sourceUrl ?? c.ref,
+      ...(e ? { id: e.id } : {}),
       refText: e ? e.quote : "(the model cited an evidence id that does not exist)",
       ok: !reason,
       ...(reason ? { reason } : {}),
@@ -116,8 +117,14 @@ export async function POST(req: Request) {
   const ch = { name: channel.name, url: channel.url, type: channel.type };
 
   const deadline = Date.now() + TOTAL_BUDGET_MS;
-  // greeting fallback: if the model still wrote [Editor's name] or similar, replace it with “<channel name> team”
-  const withRecipient = (o: DraftOut): DraftOut => ({ ...o, body: fillRecipient(o.body, channel.name) });
+  // greeting fallback: if the model still wrote [Editor's name] or similar, replace it with “<channel name> team”.
+  // Evidence marks: none in the subject; in the body keep only marks that point to evidence actually given to the model.
+  const validIds = new Set(ev.map((e) => e.id));
+  const withRecipient = (o: DraftOut): DraftOut => ({
+    ...o,
+    subject: stripEvidenceMarks(o.subject),
+    body: keepValidEvidenceMarks(fillRecipient(o.body, channel.name), validIds),
+  });
   try {
     let out = withRecipient(await chatJson({
       system: DRAFT_SYSTEM,
@@ -173,6 +180,7 @@ export async function POST(req: Request) {
         rewriteNote: [trustNote, rewriteNote].filter(Boolean).join(" ") || undefined,
       },
       allowedTexts,
+      evidence: ev.map(({ id, quote, sourceUrl }) => ({ id, quote, sourceUrl })),
     });
   } catch (e) {
     const err = toAppError(e);

@@ -48,6 +48,24 @@ const NUMBER_RE = /(?:[£$€¥]\s?\d[\d,.]*\s?(?:k|m|bn|million|billion)?|(?<![
 const CURRENCY_WORD_RE = /\b(?:gbp|usd|eur|pounds?|dollars?|euros?)\b/gi;
 const PLACEHOLDER_RE = /\[[^\]\n]{1,60}\]/g;
 
+/** Evidence marks the model puts after sentences, e.g. "[E2]" or "[E1][E3]"; the spaces before them are removed too. */
+export const EVIDENCE_MARK_RE = /[ \t]*\[E\d{1,2}\]/g;
+
+/** Remove all evidence marks ("…readers [E2]." → "…readers."). */
+export function stripEvidenceMarks(text: string): string {
+  return text.replace(EVIDENCE_MARK_RE, "");
+}
+
+/** Number of evidence marks still in the text. */
+export function countEvidenceMarks(text: string): number {
+  return text.match(EVIDENCE_MARK_RE)?.length ?? 0;
+}
+
+/** Keep only marks whose id is in validIds (upper-case "E1"…); marks citing evidence that doesn't exist are removed. */
+export function keepValidEvidenceMarks(text: string, validIds: Set<string>): string {
+  return text.replace(EVIDENCE_MARK_RE, (m) => (validIds.has(m.trim().slice(1, -1).toUpperCase()) ? m : ""));
+}
+
 function digitsOf(s: string): string {
   return s.replace(/[^\d.]/g, "").replace(/\.$/, "");
 }
@@ -102,7 +120,8 @@ export interface CheckContext {
 }
 
 export function checkEmail(subject: string, body: string, ctx: CheckContext): Flag[] {
-  const text = `${subject}\n${body}`;
+  // evidence marks are review aids, not email content: check the text without them
+  const text = stripEvidenceMarks(`${subject}\n${body}`);
   const flags: Flag[] = [];
   const seen = new Set<string>();
   const push = (f: Flag) => {

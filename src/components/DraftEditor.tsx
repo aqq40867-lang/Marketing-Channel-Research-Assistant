@@ -1,19 +1,34 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { checkEmail, hasBlockingIssues } from "@/lib/emailCheck";
+import { checkEmail, countEvidenceMarks, EVIDENCE_MARK_RE, hasBlockingIssues, stripEvidenceMarks } from "@/lib/emailCheck";
 import { fillPlaceholders, fillValues, hasFillablePlaceholders, PROFILE_LABEL, type SenderProfile } from "@/lib/profile";
 import { store, useStoreVersion } from "@/lib/storage";
-import type { AppError, Channel, Draft, Flag, Research } from "@/lib/types";
+import type { AppError, Channel, Draft, EvidenceRef, Flag, Research } from "@/lib/types";
 import { ErrorBox } from "./ErrorBox";
 import { Modal } from "./Modal";
 
-/** Highlight red / yellow flagged snippets in the body (read-only preview). */
-function Highlighted({ text, flags }: { text: string; flags: Flag[] }) {
+type MarkLevel = Flag["level"] | "evidence";
+
+/** Highlight red / yellow flagged snippets and [E1] evidence marks in the body (read-only preview). */
+function Highlighted({ text, flags, evidence }: { text: string; flags: Flag[]; evidence: EvidenceRef[] }) {
   const parts = useMemo(() => {
     const marks = flags
       .filter((f) => f.kind !== "unsupported_claim")
       .map((f) => ({ f, re: new RegExp(f.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), f.kind === "sensitive" ? "gi" : "g") }));
-    const ranges: { s: number; e: number; level: Flag["level"]; title: string }[] = [];
+    const ranges: { s: number; e: number; level: MarkLevel; title: string }[] = [];
+    const evById = new Map(evidence.map((e) => [e.id.toUpperCase(), e]));
+    for (const m of text.matchAll(new RegExp(EVIDENCE_MARK_RE.source, "g"))) {
+      if (m.index === undefined) continue;
+      const lead = m[0].length - m[0].trimStart().length; // don't highlight the space before the mark
+      const id = m[0].trim().slice(1, -1).toUpperCase();
+      const e = evById.get(id);
+      ranges.push({
+        s: m.index + lead,
+        e: m.index + m[0].length,
+        level: "evidence",
+        title: e ? `${id}: “${e.quote}”\n${e.sourceUrl}` : `${id}: evidence not found in this draft`,
+      });
+    }
     for (const { f, re } of marks) {
       for (const m of text.matchAll(re)) {
         if (m.index === undefined) continue;
@@ -30,7 +45,7 @@ function Highlighted({ text, flags }: { text: string; flags: Flag[] }) {
       if (i >= 0) ranges.push({ s: i, e: i + f.text.length, level: "red", title: f.message });
     }
     ranges.sort((a, b) => a.s - b.s || (a.level === "red" ? -1 : 1));
-    const out: { t: string; level?: Flag["level"]; title?: string }[] = [];
+    const out: { t: string; level?: MarkLevel; title?: string }[] = [];
     let pos = 0;
     for (const r of ranges) {
       if (r.s < pos) continue;
@@ -45,7 +60,17 @@ function Highlighted({ text, flags }: { text: string; flags: Flag[] }) {
     <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
       {parts.map((p, i) =>
         p.level ? (
-          <mark key={i} title={p.title} className={p.level === "red" ? "rounded bg-red-100 px-0.5 text-red-800" : "rounded bg-amber-100 px-0.5 text-amber-900"}>
+          <mark
+            key={i}
+            title={p.title}
+            className={
+              p.level === "red"
+                ? "rounded bg-red-100 px-0.5 text-red-800"
+                : p.level === "evidence"
+                  ? "cursor-help rounded bg-sky-100 px-0.5 text-xs font-medium text-sky-800"
+                  : "rounded bg-amber-100 px-0.5 text-amber-900"
+            }
+          >
             {p.t}
           </mark>
         ) : (
@@ -155,6 +180,7 @@ export function DraftEditor({
         factMap: data.draft.factMap,
         rewriteNote: data.draft.rewriteNote,
         allowedTexts: data.allowedTexts,
+        evidence: data.evidence ?? [],
         updatedAt: new Date().toISOString(),
       };
       store.saveDraft(d);
@@ -193,6 +219,11 @@ export function DraftEditor({
   const phFlags = flags.filter((f) => f.kind === "placeholder");
   const draftsFor = new Set(store.listDrafts(research.id).map((d) => d.channelUrl));
   const canFill = hasFillablePlaceholders(`${subject}\n${body}`, values);
+  const marks = countEvidenceMarks(`${subject}\n${body}`);
+  const removeMarks = () => {
+    setSubject(stripEvidenceMarks(subject));
+    setBody(stripEvidenceMarks(body));
+  };
   const fillNow = () => {
     setSubject(fillPlaceholders(subject, values));
     setBody(fillPlaceholders(body, values));
@@ -233,26 +264,37 @@ export function DraftEditor({
             <label className="label">Subject</label>
             <input className="input mb-3" value={subject} onChange={(e) => setSubject(e.target.value)} />
             <div className="mb-1 flex items-center justify-between">
-              <label className="label mb-0">Body (autosaved)</label>
-              <button className="text-xs text-brand hover:underline" onClick={() => setPreview(!preview)}>
-                {preview ? "Back to editing" : "Show flags"}
-              </button>
+              <label className="label mb-0">Body</label>
+              <div className="flex items-center gap-3">
+                {marks > 0 && (
+                  <button className="text-xs text-sky-700 hover:underline" onClick={removeMarks} title="Remove every [E1]-style mark from the subject and body">
+                    Remove evidence marks ({marks})
+                  </button>
+                )}
+                <button className="text-xs text-brand hover:underline" onClick={() => setPreview(!preview)}>
+                  {preview ? "Back to editing" : "Show flags & evidence"}
+                </button>
+              </div>
             </div>
+            {marks > 0 && (
+              <p className="mb-1 text-xs text-slate-500">
+                Marks like <code className="rounded bg-sky-100 px-1 text-sky-800">[E1]</code> show which verified evidence a sentence relies on (hover them in “Show flags &amp; evidence”, or see the fact-check list). Check them, then remove them before sending.
+              </p>
+            )}
             {preview ? (
               <div className="min-h-80 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <Highlighted text={body} flags={flags} />
+                <Highlighted text={body} flags={flags} evidence={saved.evidence ?? []} />
               </div>
             ) : (
               <textarea className="input min-h-80 font-mono text-[13px] leading-relaxed" value={body} onChange={(e) => setBody(e.target.value)} />
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button className="btn-primary" onClick={() => (red || placeholders ? setConfirmOpen(true) : doCopy())}>
+              <button className="btn-primary" onClick={() => (red || placeholders || marks ? setConfirmOpen(true) : doCopy())}>
                 {copied ? "Copied ✓" : "Copy email"}
               </button>
               <button className="btn-ghost" onClick={generate}>
                 Regenerate
               </button>
-              <span className="text-xs text-slate-400">This tool doesn't send email: copy it and send it yourself. Find the contact address on the channel's website.</span>
             </div>
           </div>
 
@@ -288,7 +330,8 @@ export function DraftEditor({
                 {saved.factMap.map((f, i) => (
                   <li key={i} className={`rounded-md p-2 text-xs ${f.ok ? "bg-slate-50" : "bg-red-50"}`}>
                     <p className="text-slate-800">
-                      {f.ok ? "✓" : "✕"} {f.claim}
+                      {f.ok ? "✓" : "✕"}{" "}
+                      {f.id && <code className="rounded bg-sky-100 px-1 text-sky-800">[{f.id}]</code>} {f.claim}
                     </p>
                     {!f.ok && f.reason && <p className="mt-0.5 text-red-600">{f.reason}</p>}
                     <p className="mt-0.5 text-slate-500">
@@ -338,6 +381,20 @@ export function DraftEditor({
         <ul className="list-disc space-y-1 pl-5">
           {red > 0 && <li>{red} red flag(s): possibly made-up numbers or unsourced claims.</li>}
           {placeholders > 0 && <li>{placeholders} placeholder(s) not filled in: {phFlags.map((f) => f.text).join(" ")}</li>}
+          {marks > 0 && (
+            <li>
+              {marks} evidence mark(s) like [E1] are still in the email.{" "}
+              <button
+                className="text-brand hover:underline"
+                onClick={() => {
+                  removeMarks();
+                  if (!red && !placeholders) setConfirmOpen(false);
+                }}
+              >
+                Remove them now
+              </button>
+            </li>
+          )}
         </ul>
       </Modal>
     </section>
@@ -368,8 +425,15 @@ function ProfileCard({ profile }: { profile: SenderProfile }) {
   const keys = Object.keys(PROFILE_LABEL) as (keyof SenderProfile)[];
   const filled = keys.filter((k) => profile[k].trim()).length;
   const set = (k: keyof SenderProfile, v: string) => store.saveProfile({ ...profile, [k]: v });
+  // Decide the default open state once on mount; afterwards it is controlled by the user only.
+  // (Binding `open` to `filled === 0` collapsed the panel as soon as the first character was typed.)
+  const [open, setOpen] = useState(() => filled === 0);
   return (
-    <details className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-2.5 text-sm" open={filled === 0}>
+    <details
+      className="mb-4 rounded-lg border border-slate-200 bg-slate-50/60 px-4 py-2.5 text-sm"
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+    >
       <summary className="cursor-pointer select-none text-slate-700">
         <span className="font-medium">Sender details</span>
         <span className={`ml-2 text-xs ${filled === keys.length ? "text-emerald-700" : "text-amber-700"}`}>
@@ -390,7 +454,6 @@ function ProfileCard({ profile }: { profile: SenderProfile }) {
           </div>
         ))}
       </div>
-      <p className="mt-2 text-xs text-slate-500">Stored in this browser and used only to fill placeholders locally; never sent to the model. Product name and URL come from your research input.</p>
     </details>
   );
 }

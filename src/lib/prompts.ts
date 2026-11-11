@@ -101,13 +101,16 @@ STRICT FACT RULES (code will check):
 - If information is missing (sender name, product name, URL, role), use placeholders like [Your name], [Product name], [Product URL], [Your role].
 - When referring to the channel's content, only mention things present in the verified evidence or verified recent titles.
 - Do not number list items with digits; use "-" bullets for topic ideas.
+EVIDENCE MARKS (for the sender's review; they will be removed before sending):
+- In the body, right after each sentence or bullet that uses verified evidence, put the evidence id(s) in square brackets before the final full stop, e.g. "...your guide to managing cash flow [E2]." or "[E1][E3]".
+- Only use ids that appear under VERIFIED EVIDENCE. Do not mark facts from the user input. Do not put marks in the subject.
 STRUCTURE of body (plain text, 120-220 words):
 1. Greeting: "Hi <person's first name>," if an editor's name is in the evidence; otherwise "Hi <CHANNEL name> team," using the CHANNEL name exactly as given (never "[Editor's name]")
 2. Who we are (1-2 sentences, from user input)
 3. Why you (reference their specific content from evidence)
 4. Proposal (follow the proposal instruction)
 5. What we'd like them to reply with (one clear, low-effort ask)
-6. Sign-off with [Your name], [Your role], [Product name], [Product URL] placeholders where unknown.
+6. Sign-off: "Thanks," then on separate lines the sender name, role and product URL (use [Your name], [Your role], [Product URL] where unknown). Do NOT put the product name in the sign-off.
 Also return "claims": every factual statement in the email about the product or about the channel, each with its source:
  - {"claim": "...", "source": "user_input", "ref": one of "product"|"audience"|"market"|"productName"|"productUrl"}
  - {"claim": "...", "source": "evidence", "ref": "E1" (the evidence id)}

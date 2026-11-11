@@ -169,8 +169,8 @@ function chat(system: string, user: string): unknown {
 
 I'm [Your name], [Your role] at [Product name]. We make a task management tool for small teams of 1 to 20 people: assigning tasks, deadline reminders and project progress in one place.
 
-I enjoyed your piece "Delegating tasks when you are the founder" and noticed you accept guest articles from practitioners who can share practical advice.
-${second ? "" : "\nOur users save 30% of their admin time.\n"}
+I enjoyed your piece "Delegating tasks when you are the founder" and noticed you accept guest articles from practitioners who can share practical advice [E1][E3].
+${second ? "" : "\nOur users save 30% of their admin time [E42].\n"}
 A few article ideas for your readers:
 - A simple weekly routine for assigning work in a small team
 - How to set deadlines your team will actually hit
@@ -180,7 +180,8 @@ Would any of these suit Mock SmallBiz Weekly? If so, I'd be glad to send a full 
 
 Best regards,
 [Your name]
-[Product name] – [Product URL]`;
+[Your role]
+[Product URL]`;
     return {
       subject: "Guest article idea for Mock SmallBiz Weekly readers",
       body,

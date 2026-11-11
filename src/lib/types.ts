@@ -204,10 +204,17 @@ export interface Flag {
   message: string; // explanation
 }
 
+export interface EvidenceRef {
+  id: string; // "E1", "E2"…
+  quote: string;
+  sourceUrl: string;
+}
+
 export interface FactItem {
   claim: string; // the claim made in the email
   source: "user_input" | "evidence";
   ref: string; // user-input field name or evidence link
+  id?: string; // evidence id ("E1"…) matching the [E1] marks in the body; only for evidence claims that exist
   refText: string; // the matching user-input text / evidence quote
   ok: boolean;
   reason?: string; // reason when ok is false
@@ -223,6 +230,7 @@ export interface Draft {
   factMap: FactItem[];
   rewriteNote?: string; // note about the automatic rewrite
   allowedTexts: string[]; // verified evidence text, used to re-check numbers while editing
+  evidence?: EvidenceRef[]; // the evidence given to the model, so [E1] marks in the body can be looked up (missing in older drafts)
   updatedAt: string;
 }
 

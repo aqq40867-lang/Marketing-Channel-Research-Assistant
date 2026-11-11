@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { checkEmail, claimInText, numbersSupported } from "@/lib/emailCheck";
+import { checkEmail, claimInText, countEvidenceMarks, keepValidEvidenceMarks, numbersSupported, stripEvidenceMarks } from "@/lib/emailCheck";
 import type { ResearchInput } from "@/lib/types";
 
 const input: ResearchInput = {
@@ -84,5 +84,25 @@ describe("claim helpers", () => {
   it("claimInText matches by keywords within one sentence", () => {
     expect(claimInText("We partner with your publisher", "Note: we partner with your publisher.")).toBe(true);
     expect(claimInText("Small business clients save hours every week", "We sell software. Clients like it.")).toBe(false);
+  });
+});
+
+describe("evidence marks", () => {
+  const body = "I enjoyed your guide to cash flow [E2]. You accept guest posts [E1][E3].\n- Topic idea [E4]\nThanks,";
+  it("counts and strips marks with the space before them", () => {
+    expect(countEvidenceMarks(body)).toBe(4);
+    expect(stripEvidenceMarks(body)).toBe("I enjoyed your guide to cash flow. You accept guest posts.\n- Topic idea\nThanks,");
+  });
+  it("keeps only marks pointing to evidence that exists", () => {
+    expect(keepValidEvidenceMarks(body, new Set(["E1", "E2"]))).toBe(
+      "I enjoyed your guide to cash flow [E2]. You accept guest posts [E1].\n- Topic idea\nThanks,",
+    );
+  });
+  it("does not treat marks as placeholders or numbers", () => {
+    const flags = checkEmail("Idea", body, { input, allowedTexts: [] });
+    expect(flags.filter((f) => f.kind === "placeholder" || f.kind === "number")).toHaveLength(0);
+  });
+  it("does not touch real placeholders", () => {
+    expect(stripEvidenceMarks("[Your name] [Product URL] [E1]")).toBe("[Your name] [Product URL]");
   });
 });
