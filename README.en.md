@@ -75,12 +75,10 @@ The AI-generated code was reviewed and fixed against these four checks:
 ## Known limitations
 
 - Only DeepSeek is supported; other LLM APIs can't be swapped in directly. The chat model uses an OpenAI-compatible endpoint but sends a DeepSeek-specific parameter, and search and page fetching use DeepSeek's own Search/Fetch APIs, which other providers don't offer. To switch, only `src/lib/deepseek.ts` needs changing (point chat at another OpenAI-compatible service, and replace `search()` / `fetchPage()` with e.g. Tavily or Brave Search); the rest of the code is unaffected.
-- Search results change over time, so the same input can give different results on two runs.
 - Code can only prove "this sentence is on the page", not whether it supports the conclusion or is out of date; that needs a person to check.
 - Data lives only in the current browser; switching browsers, clearing site data or using private mode loses it. Capacity is about 5 MB.
 - The market check is strict (the page must say so, or the site must use the target country's domain), so some `.com` sites may be missed; sites that refuse fetching can't be recommended.
 - Payment is mostly "Payment unknown": only one page is fetched per channel, and pricing usually sits on a submission or advertising page that isn't fetched.
-- No contact email addresses are provided; the interface and emails are English only.
 
 ## AI tools, borrowed code and my own work
 
