@@ -79,6 +79,7 @@ The AI-generated code was reviewed and fixed against these four checks:
 - Code can only prove "this sentence is on the page", not whether it supports the conclusion or is out of date; that needs a person to check.
 - Data lives only in the current browser; switching browsers, clearing site data or using private mode loses it. Capacity is about 5 MB.
 - The market check is strict (the page must say so, or the site must use the target country's domain), so some `.com` sites may be missed; sites that refuse fetching can't be recommended.
+- Payment is mostly "Payment unknown": only one page is fetched per channel, and pricing usually sits on a submission or advertising page that isn't fetched.
 - No contact email addresses are provided; the interface and emails are English only.
 
 ## AI tools, borrowed code and my own work
