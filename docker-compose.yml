@@ -1,0 +1,32 @@
+# Usage:
+#   1. Copy .env.example to .env.local and fill in DEEPSEEK_API_KEY
+#   2. docker compose up -d --build
+#   3. Open http://localhost:3000 (if the port is taken: $env:APP_PORT=3001; docker compose up -d)
+services:
+  app:
+    build: .
+    image: marketing-channel-research:latest
+    container_name: marketing-channel-research
+    ports:
+      # Listens on localhost (127.0.0.1) only by default: the API has no auth, so this stops others on your network using your key.
+      # If the port is taken, change it with APP_PORT, e.g. $env:APP_PORT=3001
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    env_file:
+      # Requires Docker Compose 2.24 or later (for the required field)
+      # Starts even without .env.local; the page will say DEEPSEEK_API_KEY is missing
+      - path: .env.local
+        required: false
+    restart: unless-stopped
+
+  # Offline mock DeepSeek (for demos without a key; all data is fictional)
+  #   docker compose --profile mock up -d --build
+  #   and set DEEPSEEK_API_KEY=mock and DEEPSEEK_BASE_URL=http://mock:8787 in .env.local
+  mock:
+    profiles: ["mock"]
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./scripts/mock-deepseek.ts:/app/mock-deepseek.ts:ro
+    command: ["npx", "-y", "tsx@4", "mock-deepseek.ts"]
+    ports:
+      - "127.0.0.1:8787:8787"

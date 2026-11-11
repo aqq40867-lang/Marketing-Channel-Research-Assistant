@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+_to_delete
+docs/*.md
+!docs/verification-log.md
+*.tsbuildinfo
+npm-debug.log*
+Dockerfile*
+docker-compose*.yml

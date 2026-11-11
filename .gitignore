@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Environment variables (keep only the example)
+.env
+.env.*
+!.env.example
+
+# Test / tool temporary files
+*.timestamp-*.mjs
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local backups and scratch
+_backup*
+*.tar.gz
+_to_delete/
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
